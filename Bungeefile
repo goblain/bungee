@@ -1,0 +1,17 @@
+type: project
+name: default
+envs:
+  prod:
+    clusters:
+    - context: <context>
+      namespace: <namespace>
+    journal:
+  stage:
+    clusters:
+    - context: <context>
+      namespace: <namespace>
+    journal:
+plugins:
+  vault:
+    server: https://<vault-addr>
+    path: secret/<somedir>

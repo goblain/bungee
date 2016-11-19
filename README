@@ -1,0 +1,4 @@
+some opinionated requirements :
+
+Multicluster destination envs :
+- launch setup/deploy on multiple clusters with one command
