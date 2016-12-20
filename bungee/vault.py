@@ -1,9 +1,8 @@
 #!/usr/bin/python
 
-import sys, os, hvac, string, random
+import sys, os, hvac, string, random, tty, termios
 from pprint import pprint
 from base64 import b64encode
-
 
 class Vault:
   client = False
@@ -23,6 +22,16 @@ class Vault:
   def getSecretB64(self, path, secrettype='rand20'):
     return b64encode(self.getSecret(path, secrettype))
 
+  def getChar(self):
+    fd = sys.stdin.fileno()
+    oldSettings = termios.tcgetattr(fd)
+    try:
+      tty.setraw(fd)
+      answer = sys.stdin.read(1)
+    finally:
+      termios.tcsetattr(fd, termios.TCSADRAIN, oldSettings)
+    return answer
+
   def getSecret(self, path, secrettype='rand20'):
     fullpath = self.envpath+'/'+self.component+'/'+path
     self.clientInit()
@@ -31,7 +40,20 @@ class Vault:
     # if no secret fetched use selected type and generate new secret using that type
     # returning the new value 
     if secret == None :
-      newsecret = self.generateSecret(secrettype)
+      print('Secret '+fullpath+' empty.')
+      print(' 1) provide manually')
+      print(' 2) generate automatically with '+secrettype+' profile')
+      print(' q) quit')
+      while True:
+        mode = self.getChar()
+        if mode == '1' :
+          newsecret = raw_input('Enter your secret :')
+          break
+        elif mode == '2' :
+          newsecret = self.generateSecret(secrettype)
+          break
+        elif mode == 'q' :
+          sys.exit()
       print('Storing new secret '+fullpath)
       self.client.write(fullpath, value=newsecret)
       return(newsecret)

@@ -43,6 +43,7 @@ class Core:
     print("JINJA template "+path)
     with open(path, 'r') as tplfile:
       jinjaEnv = Environment(loader = DictLoader({'kubetpl': tplfile.read()}))
+      jinjaEnv.globals.update(vaultb64 = self.vaulter.getSecretB64)
       jinjaEnv.globals.update(vault = self.vaulter.getSecret)
       template = jinjaEnv.get_template('kubetpl')
       print(template.render())
@@ -80,7 +81,6 @@ class Core:
     component = sys.argv[3]
     context = ''
   
-#    self.conf = Config()
     self.vaulter = Vault()
   
     configfile = "Bungeefile"
@@ -96,9 +96,11 @@ class Core:
     envs = tmp['envs']
     self.env = envs[env]
 
-    self.vaulter.envpath = tmp['plugins']['vault']['path']+'/'+env
-    self.vaulter.component = component
-    self.vaulter.server = tmp['plugins']['vault']['server']
+    if tmp['plugins']:
+      if tmp['plugins']['vault']:
+        self.vaulter.envpath = tmp['plugins']['vault']['path']+'/'+env
+        self.vaulter.component = component
+        self.vaulter.server = tmp['plugins']['vault']['server']
     
     if stage not in ('setup', 'deploy'):
       pprint("Stage '"+stage+"' not recognised")
