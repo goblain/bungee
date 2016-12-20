@@ -24,11 +24,9 @@ class Core:
 
   def kubeApplyString(self, manifest):
     for cluster in self.env['clusters'] :
-#      p = Popen(['/opt/bin/kubectl', '--context', cluster['context'], '--namespace', cluster['namespace'], 'apply', '-f', '-'], stdin=PIPE, shell=True)
       p = Popen('kubectl --context '+cluster['context']+' --namespace '+cluster['namespace']+' apply -f -', stdin=PIPE, shell=True)
       p.communicate(manifest)
       p.wait()
-#      os.system('kubectl --context '+cluster['context']+' --namespace '+cluster['namespace']+' apply -f '+path)
   
   def kubeApplyFile(self, path):
     for cluster in self.env['clusters'] :
@@ -39,8 +37,7 @@ class Core:
     return()
   
   def kubeApplyTemplate(self, path):
-    # TODO: result can contain secrets, store and apply from memory rather then on disk
-    print("JINJA template "+path)
+    # as result can contain secrets, store and apply from memory rather then on disk
     with open(path, 'r') as tplfile:
       jinjaEnv = Environment(loader = DictLoader({'kubetpl': tplfile.read()}))
       jinjaEnv.globals.update(vaultb64 = self.vaulter.getSecretB64)
@@ -48,32 +45,34 @@ class Core:
       template = jinjaEnv.get_template('kubetpl')
       print(template.render())
       self.kubeApplyString(template.render())
+
+  # Compile list of files to apply in alphabetic order and overloading
+  def applyFolders(self, component, folders):
+    catalog = {}
+    for folder in folders:
+      path = self.basepath+'/'+component+'/'+folder
+      if os.path.isdir(path):
+        for mfile in os.listdir(path):
+          catalog[mfile] = path+'/'+mfile
+    pprint(catalog)
+    for itemkey in catalog:
+      pprint(catalog[itemkey])
+      if catalog[itemkey].endswith('.j2'):
+        self.kubeApplyTemplate(catalog[itemkey])
+      else:
+        self.kubeApplyFile(catalog[itemkey])
   
   def setup(self, component, env):
     # TODO: evaluate all templates first before applying any object
     # TODO: investigate possibility to validate manifests before applying
     print('Setup for component '+component+' started...')
-    for folder in ('setup-common', 'setup-'+env) :
-      path = self.basepath+'/'+component+'/'+folder
-      if os.path.isdir(path):
-        r = re.compile('.*\.yml$')
-        for file in filter(r.match, os.listdir(path)):
-          self.kubeApplyFile(path+'/'+file)
-        r = re.compile('.*\.yml\.j2$')
-        for file in filter(r.match, os.listdir(path)):
-          self.kubeApplyTemplate(path+'/'+file)
+    self.applyFolders(component, ['setup-common', 'setup-'+env])
   
   def deploy(self, component, env):
     # TODO: report in progress to deploy version log
     # TODO: report failure/success to deploy version log
-    path = self.basepath+'/'+component+'/deploy'
-    if os.path.isdir(path):
-      r = re.compile('.*\.yml$')
-      for file in filter(r.match, os.listdir(path)):
-        self.kubeApplyFile(path+'/'+file)
-      r = re.compile('.*\.yml\.j2$')
-      for file in filter(r.match, os.listdir(path)):
-        self.kubeApplyTemplate(path+'/'+file)
+    print('Deploy for component '+component+' started...')
+    self.applyFolders(component, ['deploy', 'deploy-'+env])
   
   def main(self):
     env = sys.argv[1]
