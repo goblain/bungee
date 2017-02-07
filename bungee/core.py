@@ -43,8 +43,8 @@ class Core:
       jinjaEnv.globals.update(vaultb64 = self.vaulter.getSecretB64)
       jinjaEnv.globals.update(vault = self.vaulter.getSecret)
       template = jinjaEnv.get_template('kubetpl')
-      print(template.render())
-      self.kubeApplyString(template.render())
+      print(template.render(env=self.env['name']))
+      self.kubeApplyString(template.render(env=self.env['name']))
 
   # Compile list of files to apply in alphabetic order and overloading
   def applyFolders(self, component, folders):
@@ -59,8 +59,10 @@ class Core:
       pprint(catalog[itemkey])
       if catalog[itemkey].endswith('.j2'):
         self.kubeApplyTemplate(catalog[itemkey])
-      else:
+      elif catalog[itemkey].endswith('.yml'):
         self.kubeApplyFile(catalog[itemkey])
+      else:
+        print('Unsupported file '+catalog[itemkey])
   
   def setup(self, component, env):
     # TODO: evaluate all templates first before applying any object
@@ -94,6 +96,7 @@ class Core:
     
     envs = tmp['envs']
     self.env = envs[env]
+    self.env['name'] = env
 
     if tmp['plugins']:
       if tmp['plugins']['vault']:
